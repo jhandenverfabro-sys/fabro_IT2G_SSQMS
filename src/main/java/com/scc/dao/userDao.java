@@ -8,7 +8,7 @@ import java.sql.ResultSet;
 public class userDao {
     public boolean registerUser(String username, String password, String role, String status){
 
-        String sql = "INSERT INTO user (username, password, role, status) VALUES (?, ?, ?, 'INACTIVE')";
+        String sql = "INSERT INTO user (username, password, role, status) VALUES (?, ?, ?, 'PENDING')";
 
         try(Connection conn = DatabaseConnection.getConnection();
         PreparedStatement pstmt = conn.prepareStatement(sql)){
