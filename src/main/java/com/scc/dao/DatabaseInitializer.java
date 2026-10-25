@@ -64,8 +64,7 @@ public class DatabaseInitializer {
                 + "FOREIGN KEY (staff_id) REFERENCES Staff(staff_id)"
                 + ")";
 
-        try (Connection connection =
-                     DatabaseConnection.getConnection();
+        try (Connection connection = DatabaseConnection.getConnection();
              Statement statement = connection.createStatement()) {
 
             statement.execute(userTable);
@@ -78,8 +77,7 @@ public class DatabaseInitializer {
             System.out.println("Database initialized successfully.");
 
         } catch (SQLException e) {
-            System.out.println(
-                    "Database initialization failed: " + e.getMessage());
+            System.out.println("Database initialization failed: " + e.getMessage());
         }
     }
 }

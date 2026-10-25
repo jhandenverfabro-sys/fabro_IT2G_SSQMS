@@ -33,24 +33,23 @@ public class Authentication {
                     String role = userDao.loginUser(username, password);
 
                     if (role != null) {
-                        System.out.println("\nLogin Successful!");
-                        System.out.println("Role: " + role);
+                        System.out.println("\nLogin Successful! Role: " + role);
 
                         switch (role) {
                             case "ADMIN":
-                                System.out.println("Welcome, Admin!");
+                                AdminMenu.showMenu(sc, userDao);
                                 break;
                             case "STUDENT":
-                                System.out.println("Welcome, Student!");
+                                StudentMenu.showMenu(sc, username);
                                 break;
                             case "STAFF":
-                                System.out.println("Welcome, Staff!");
+                                StaffMenu.showMenu(sc, username);
                                 break;
                             case "SUPERVISOR":
-                                System.out.println("Welcome, Supervisor!");
+                                SupervisorMenu.showMenu(sc, username);
                                 break;
                             default:
-                                System.out.println("Welcome!");
+                                System.out.println("Welcome, " + role + "!");
                         }
                     } else {
                         System.out.println("Invalid username, password, or account pending approval!");
@@ -97,8 +96,7 @@ public class Authentication {
                     }
 
                     if (registerRole != null) {
-                        String status = "PENDING";
-                        userDao.registerUser(user, pass, registerRole, status);
+                        userDao.registerUser(user, pass, registerRole, "PENDING");
                     } else {
                         System.out.println("Invalid role selection!");
                     }
