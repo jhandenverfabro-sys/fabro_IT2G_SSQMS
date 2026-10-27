@@ -21,7 +21,7 @@ public class DatabaseInitializer {
                 + "course TEXT, "
                 + "year_level INTEGER, "
                 + "contact_number TEXT, "
-                + "status TEXT NOT NULL DEFAULT 'ACTIVE'" // Removed CHECK constraint if any existed here
+                + "status TEXT NOT NULL DEFAULT 'ACTIVE'"
                 + ")";
 
         String servicesTable = "CREATE TABLE IF NOT EXISTS Services ("
@@ -29,7 +29,7 @@ public class DatabaseInitializer {
                 + "service_name TEXT NOT NULL, "
                 + "description TEXT, "
                 + "counter_number INTEGER, "
-                + "status TEXT NOT NULL DEFAULT 'waiting, serving, completed, cancelled'"
+                + "status TEXT NOT NULL DEFAULT 'ACTIVE'"
                 + ")";
 
         String queueTable = "CREATE TABLE IF NOT EXISTS Queue ("

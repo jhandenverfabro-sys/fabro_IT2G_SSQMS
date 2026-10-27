@@ -27,7 +27,7 @@ public class StaffMenu {
             System.out.println("2. Call / Process Next Student");
             System.out.println("3. Manage Queue");
             System.out.println("4. Manage Student Services");
-            System.out.println("5. Manage Verified Students ");
+            System.out.println("5. Manage Verified Students");
             System.out.println("6. Logout");
             System.out.print("Choose an option: ");
 
@@ -37,28 +37,22 @@ public class StaffMenu {
                 case "1":
                     viewWaitingQueue();
                     break;
-
                 case "2":
                     processNextQueue(sc, staffId);
                     break;
-
                 case "3":
                     manageQueueMenu(sc);
                     break;
-
                 case "4":
                     manageServicesMenu(sc);
                     break;
-
                 case "5":
                     AdminMenu.manageStudentsMenu(sc, userDao);
                     break;
-
                 case "6":
                     back = true;
                     System.out.println("Logging out from Staff menu...");
                     break;
-
                 default:
                     System.out.println("Invalid choice. Please try again.");
             }
@@ -81,29 +75,23 @@ public class StaffMenu {
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
 
-            System.out.println("Q.ID\tQ.#\tSTUDENT ID\tSTUDENT NAME\t\tSERVICE ID\tSERVICE\t\tDATE\t\tTIME");
+            System.out.println("Q.ID\tQ.#\tSTUDENT ID\tSTUDENT NAME\t\tSERVICE\t\tDATE\t\tTIME");
             System.out.println("--------------------------------------------------------------------------------------------------");
-
             boolean hasRows = false;
             while (rs.next()) {
                 hasRows = true;
                 System.out.println(
-                        rs.getString("queue_id") + "\t" +
+                        rs.getInt("queue_id") + "\t" +
                                 rs.getString("queue_number") + "\t" +
-                                rs.getString("student_id") + "\t\t" +
+                                rs.getInt("student_id") + "\t\t" +
                                 rs.getString("student_name") + "\t\t" +
-                                rs.getString("service_id") + "\t\t" +
-                                rs.getString("service_name") + "\t" +
+                                rs.getString("service_name") + "\t\t" +
                                 rs.getString("queue_date") + "\t" +
                                 rs.getString("queue_time")
                 );
             }
-
-            if (!hasRows) {
-                System.out.println(" No students currently waiting in the queue.");
-            }
+            if (!hasRows) System.out.println(" No students currently waiting in the queue.");
             System.out.println("==================================================================================================");
-
         } catch (SQLException e) {
             System.err.println("Error fetching waiting queue: " + e.getMessage());
         }
@@ -111,8 +99,7 @@ public class StaffMenu {
 
     private static void processNextQueue(Scanner sc, int staffId) {
         viewWaitingQueue();
-
-        System.out.print("Enter Queue ID to mark as SERVED (or enter 0 to cancel): ");
+        System.out.print("Enter Queue ID to mark as SERVING (or enter 0 to cancel): ");
         String input = sc.nextLine();
 
         int queueId;
@@ -133,7 +120,6 @@ public class StaffMenu {
 
         try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false);
-
             try (PreparedStatement updateStmt = conn.prepareStatement(updateQueueSql);
                  PreparedStatement logStmt = conn.prepareStatement(logActivitySql)) {
 
@@ -162,23 +148,22 @@ public class StaffMenu {
                 conn.rollback();
                 throw e;
             }
-
         } catch (SQLException e) {
             System.err.println("Database error during queue processing: " + e.getMessage());
         }
     }
 
-    // --- QUEUE CRUD MANAGEMENT ---
+    // --- COMPLETE QUEUE MANAGEMENT (CRUD) ---
     private static void manageQueueMenu(Scanner sc) {
         boolean back = false;
         while (!back) {
             System.out.println("\n=======================================");
             System.out.println("          QUEUE MANAGEMENT (CRUD)      ");
             System.out.println("=======================================");
-            System.out.println("1. Add Queue Entry");
-            System.out.println("2. View All Queue Records");
-            System.out.println("3. Update Queue Entry");
-            System.out.println("4. Delete Queue Entry");
+            System.out.println("1. Add Queue Entry (Create)");
+            System.out.println("2. View All Queue Records (Read)");
+            System.out.println("3. Update Queue Entry Status (Update)");
+            System.out.println("4. Delete Queue Entry (Delete)");
             System.out.println("5. Back to Dashboard");
             System.out.print("Choose an option: ");
 
@@ -186,25 +171,26 @@ public class StaffMenu {
 
             switch (choice) {
                 case "1":
-                    viewServicesDirectory();
-
-                    System.out.print("\nEnter Queue Number (e.g. A-001): ");
-                    String queueNumber = sc.nextLine();
+                    AdminMenu.viewStudentDirectory();
                     System.out.print("Enter Student ID: ");
                     int studentId = Integer.parseInt(sc.nextLine());
-                    System.out.print("Enter Service ID (from the list above): ");
+
+                    viewServicesDirectory();
+                    System.out.print("Enter Service ID: ");
                     int serviceId = Integer.parseInt(sc.nextLine());
 
-                    // Validate that Student ID and Service ID actually exist
-                    if (!isServiceExists(serviceId) || !isStudentExists(studentId)) {
-                        System.out.println("-> Error: The Student ID or Service ID you entered does not exist!");
+                    if (!isStudentExists(studentId) || !isServiceExists(serviceId)) {
+                        System.out.println("-> Error: Invalid Student ID or Service ID!");
                         break;
                     }
+
+                    System.out.print("Enter Queue Number (e.g., A-001): ");
+                    String queueNumber = sc.nextLine().trim();
 
                     String currentDate = LocalDate.now().toString();
                     String currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
-                    String insertSql = "INSERT INTO Queue (queue_number, student_id, service_id, queue_date, queue_time, status) VALUES (?, ?, ?, ?, ?, ?)";
+                    String insertSql = "INSERT INTO Queue (queue_number, student_id, service_id, queue_date, queue_time, status) VALUES (?, ?, ?, ?, ?, 'waiting')";
                     try (Connection conn = DatabaseConnection.getConnection();
                          PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
                         pstmt.setString(1, queueNumber);
@@ -212,7 +198,6 @@ public class StaffMenu {
                         pstmt.setInt(3, serviceId);
                         pstmt.setString(4, currentDate);
                         pstmt.setString(5, currentTime);
-                        pstmt.setString(6, "waiting");
                         pstmt.executeUpdate();
                         System.out.println("-> Success! Queue entry added.");
                     } catch (SQLException e) {
@@ -228,16 +213,17 @@ public class StaffMenu {
                     viewAllQueues();
                     System.out.print("Enter Queue ID to Update: ");
                     int updateId = Integer.parseInt(sc.nextLine());
+
                     System.out.print("Enter New Queue Number: ");
-                    String newQNum = sc.nextLine();
-                    System.out.print("Enter New Status (waiting, serving, completed, cancelled): ");
-                    String newStatus = sc.nextLine();
+                    String newQNum = sc.nextLine().trim();
+
+                    String newStatus = readValidServiceStatus(sc);
 
                     String updateSql = "UPDATE Queue SET queue_number = ?, status = ? WHERE queue_id = ?";
                     try (Connection conn = DatabaseConnection.getConnection();
                          PreparedStatement pstmt = conn.prepareStatement(updateSql)) {
                         pstmt.setString(1, newQNum);
-                        pstmt.setString(2, newStatus.toLowerCase());
+                        pstmt.setString(2, newStatus);
                         pstmt.setInt(3, updateId);
                         int rows = pstmt.executeUpdate();
                         if (rows > 0) {
@@ -291,7 +277,7 @@ public class StaffMenu {
              ResultSet rs = pstmt.executeQuery()) {
 
             System.out.println("ID\tQ.#\tSTUDENT ID\tSERVICE ID\tDATE\t\tTIME\t\tSTATUS");
-            System.out.println("----------------------------------------------------------------------------------");
+            System.out.println("--------------------------------------------------------------------------------==");
             boolean hasRows = false;
             while (rs.next()) {
                 hasRows = true;
@@ -305,27 +291,23 @@ public class StaffMenu {
                                 rs.getString("status")
                 );
             }
-            if (!hasRows) {
-                System.out.println(" No queue records found.");
-            }
+            if (!hasRows) System.out.println(" No queue records found.");
             System.out.println("==================================================================================");
         } catch (SQLException e) {
             System.err.println("Error fetching queues: " + e.getMessage());
         }
     }
 
-    // --- SERVICES CRUD MANAGEMENT ---
-    // --- SERVICES CRUD MANAGEMENT ---
     private static void manageServicesMenu(Scanner sc) {
         boolean back = false;
         while (!back) {
             System.out.println("\n=======================================");
             System.out.println("         SERVICES MANAGEMENT (CRUD)    ");
             System.out.println("=======================================");
-            System.out.println("1. Add New Service (Create)");
-            System.out.println("2. View All Services (Read)");
-            System.out.println("3. Update Service Record (Update)");
-            System.out.println("4. Delete Service Record (Delete)");
+            System.out.println("1. Add New Service");
+            System.out.println("2. View All Services");
+            System.out.println("3. Update Service Record");
+            System.out.println("4. Delete Service Record");
             System.out.println("5. Back to Staff Dashboard");
             System.out.print("Choose an option: ");
 
@@ -340,9 +322,7 @@ public class StaffMenu {
                     System.out.print("Enter Counter Number: ");
                     int counter = Integer.parseInt(sc.nextLine());
 
-                    // Fixed: Prompt specifically for service statuses like active/inactive
-                    System.out.print("Enter Status (e.g. active, inactive): ");
-                    String status = sc.nextLine().trim().toLowerCase();
+                    String status = readValidServiceStatus(sc);
 
                     String insertSql = "INSERT INTO Services (service_name, description, counter_number, status) VALUES (?, ?, ?, ?)";
                     try (Connection conn = DatabaseConnection.getConnection();
@@ -357,11 +337,9 @@ public class StaffMenu {
                         System.err.println("Error adding service: " + e.getMessage());
                     }
                     break;
-
                 case "2":
                     viewServicesDirectory();
                     break;
-
                 case "3":
                     viewServicesDirectory();
                     System.out.print("Enter Service ID to Update: ");
@@ -373,8 +351,7 @@ public class StaffMenu {
                     System.out.print("Enter New Counter Number: ");
                     int newCounter = Integer.parseInt(sc.nextLine());
 
-                    System.out.print("Enter New Status (active, inactive): ");
-                    String newStatus = sc.nextLine().trim().toLowerCase();
+                    String newServiceStatus = readValidServiceStatus(sc);
 
                     String updateSql = "UPDATE Services SET service_name = ?, description = ?, counter_number = ?, status = ? WHERE service_id = ?";
                     try (Connection conn = DatabaseConnection.getConnection();
@@ -382,7 +359,7 @@ public class StaffMenu {
                         pstmt.setString(1, newName);
                         pstmt.setString(2, newDesc);
                         pstmt.setInt(3, newCounter);
-                        pstmt.setString(4, newStatus);
+                        pstmt.setString(4, newServiceStatus);
                         pstmt.setInt(5, updateId);
                         int rows = pstmt.executeUpdate();
                         if (rows > 0) {
@@ -394,7 +371,6 @@ public class StaffMenu {
                         System.err.println("Error updating service: " + e.getMessage());
                     }
                     break;
-
                 case "4":
                     viewServicesDirectory();
                     System.out.print("Enter Service ID to Delete (or 0 to cancel): ");
@@ -415,14 +391,23 @@ public class StaffMenu {
                         }
                     }
                     break;
-
                 case "5":
                     back = true;
                     break;
-
                 default:
                     System.out.println("Invalid choice. Please try again.");
             }
+        }
+    }
+
+    private static String readValidServiceStatus(Scanner sc) {
+        while (true) {
+            System.out.print("Enter Status [waiting, serving, completed, cancelled]: ");
+            String status = sc.nextLine().trim().toLowerCase();
+            if (status.equals("waiting") || status.equals("serving") || status.equals("completed") || status.equals("cancelled")) {
+                return status;
+            }
+            System.out.println("Invalid status! Please enter exactly: waiting, serving, completed, or cancelled.");
         }
     }
 
@@ -435,8 +420,8 @@ public class StaffMenu {
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
 
-            System.out.println("ID\tNAME\t\tDESCRIPTION\t\t\tCOUNTER\tSTATUS");
-            System.out.println("----------------------------------------------------------------------------------");
+            System.out.println("ID\tNAME\t\tDESCRIPTION\t\tCOUNTER\tSTATUS");
+            System.out.println("--------------------------------------------------------------------------------==");
             boolean hasRows = false;
             while (rs.next()) {
                 hasRows = true;
@@ -448,9 +433,7 @@ public class StaffMenu {
                                 rs.getString("status")
                 );
             }
-            if (!hasRows) {
-                System.out.println(" No service records found.");
-            }
+            if (!hasRows) System.out.println(" No service records found.");
             System.out.println("==================================================================================");
         } catch (SQLException e) {
             System.err.println("Error fetching services: " + e.getMessage());
@@ -463,27 +446,12 @@ public class StaffMenu {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username);
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("staff_id");
-                }
+                if (rs.next()) return rs.getInt("staff_id");
             }
         } catch (SQLException e) {
-            // Fallback default ID
+            // Fallback
         }
         return 1;
-    }
-
-    private static boolean isServiceExists(int serviceId) {
-        String sql = "SELECT 1 FROM Services WHERE service_id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, serviceId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                return rs.next();
-            }
-        } catch (SQLException e) {
-            return false;
-        }
     }
 
     private static boolean isStudentExists(int studentId) {
@@ -498,69 +466,17 @@ public class StaffMenu {
             return false;
         }
     }
-    private static void logQueueAction(int queueId, int staffId, String action) {
-        String logSql = "INSERT INTO QueueActivityLog (queue_id, staff_id, action, date, time) VALUES (?, ?, ?, ?, ?)";
 
-        String currentDate = LocalDate.now().toString();
-        String currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-
+    private static boolean isServiceExists(int serviceId) {
+        String sql = "SELECT 1 FROM Services WHERE service_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(logSql)) {
-
-            pstmt.setInt(1, queueId);
-            pstmt.setInt(2, staffId);
-            pstmt.setString(3, action.toUpperCase()); // e.g. SERVED, CALLED, CANCELLED
-            pstmt.setString(4, currentDate);
-            pstmt.setString(5, currentTime);
-
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            System.err.println("Error logging queue activity: " + e.getMessage());
-        }
-    }
-
-    private static void viewQueueActivityLogs() {
-        System.out.println("\n=========================================================================================================");
-        System.out.println("                                      QUEUE ACTIVITY LOG REPORT                                          ");
-        System.out.println("=========================================================================================================");
-
-        String sql = "SELECT l.log_id, q.queue_number, s.student_name, sv.service_name, st.username AS staff_name, l.action, l.date, l.time " +
-                "FROM QueueActivityLog l " +
-                "JOIN Queue q ON l.queue_id = q.queue_id " +
-                "JOIN Student s ON q.student_id = s.student_id " +
-                "JOIN Services sv ON q.service_id = sv.service_id " +
-                "JOIN Staff st ON l.staff_id = st.staff_id " +
-                "ORDER BY l.log_id DESC";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            System.out.println("LOG ID\tQ.#\tSTUDENT\t\tSERVICE\t\tSTAFF\t\tACTION\t\tDATE\t\tTIME");
-            System.out.println("---------------------------------------------------------------------------------------------------------");
-
-            boolean hasRows = false;
-            while (rs.next()) {
-                hasRows = true;
-                System.out.println(
-                        rs.getInt("log_id") + "\t" +
-                                rs.getString("queue_number") + "\t" +
-                                rs.getString("student_name") + "\t" +
-                                rs.getString("service_name") + "\t" +
-                                rs.getString("staff_name") + "\t" +
-                                rs.getString("action") + "\t\t" +
-                                rs.getString("date") + "\t" +
-                                rs.getString("time")
-                );
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, serviceId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
             }
-
-            if (!hasRows) {
-                System.out.println(" No activity logs found.");
-            }
-            System.out.println("=========================================================================================================");
-
         } catch (SQLException e) {
-            System.err.println("Error fetching activity logs: " + e.getMessage());
+            return false;
         }
     }
 }

@@ -29,27 +29,22 @@ public class SupervisorMenu {
                 case "1":
                     viewActivityLogs();
                     break;
-
                 case "2":
                     viewStaffPerformance();
                     break;
-
                 case "3":
                     viewQueueSummary();
                     break;
-
                 case "4":
                     back = true;
                     System.out.println("Logging out from Supervisor menu...");
                     break;
-
                 default:
-                    System.out.println("Invalid choice. Please try again.");
+                    System.out.println("Invalid choice.");
             }
         }
     }
 
-    // --- Feature 1: View All Queue Activity Logs ---
     private static void viewActivityLogs() {
         System.out.println("\n==========================================================================");
         System.out.println("                         QUEUE ACTIVITY AUDIT LOGS                        ");
@@ -65,12 +60,9 @@ public class SupervisorMenu {
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
 
-            System.out.println("LOG ID\tQUEUE #\t\tSTAFF NAME\t\tACTION\t\tDATE\t\tTIME");
+            System.out.println("LOG ID\tQUEUE #\t\tSTAFF NAME\tACTION\t\tDATE\t\tTIME");
             System.out.println("--------------------------------------------------------------------------");
-
-            boolean hasRows = false;
             while (rs.next()) {
-                hasRows = true;
                 System.out.println(
                         rs.getInt("log_id") + "\t\t" +
                                 rs.getString("queue_number") + "\t\t" +
@@ -80,27 +72,19 @@ public class SupervisorMenu {
                                 rs.getString("time")
                 );
             }
-
-            if (!hasRows) {
-                System.out.println(" No activity logs recorded yet.");
-            }
             System.out.println("==========================================================================");
-
         } catch (SQLException e) {
-            System.err.println("Error fetching activity logs: " + e.getMessage());
+            System.err.println("Error: " + e.getMessage());
         }
     }
 
-    // --- Feature 2: View Staff Performance Summary ---
     private static void viewStaffPerformance() {
         System.out.println("\n==========================================================================");
         System.out.println("                         STAFF PERFORMANCE SUMMARY                        ");
         System.out.println("==========================================================================");
 
         String sql = "SELECT st.staff_id, st.staff_name, st.role, COUNT(l.log_id) AS total_handled " +
-                "FROM Staff st " +
-                "LEFT JOIN QueueActivityLog l ON st.staff_id = l.staff_id " +
-                "GROUP BY st.staff_id, st.staff_name, st.role";
+                "FROM Staff st LEFT JOIN QueueActivityLog l ON st.staff_id = l.staff_id GROUP BY st.staff_id";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -108,10 +92,7 @@ public class SupervisorMenu {
 
             System.out.println("STAFF ID\tSTAFF NAME\t\tROLE\t\tTASKS PROCESSED");
             System.out.println("--------------------------------------------------------------------------");
-
-            boolean hasRows = false;
             while (rs.next()) {
-                hasRows = true;
                 System.out.println(
                         rs.getInt("staff_id") + "\t\t" +
                                 rs.getString("staff_name") + "\t\t" +
@@ -119,18 +100,12 @@ public class SupervisorMenu {
                                 rs.getInt("total_handled")
                 );
             }
-
-            if (!hasRows) {
-                System.out.println(" No staff records found.");
-            }
             System.out.println("==========================================================================");
-
         } catch (SQLException e) {
-            System.err.println("Error fetching staff performance: " + e.getMessage());
+            System.err.println("Error: " + e.getMessage());
         }
     }
 
-    // --- Feature 3: View Overall System Queue Summary ---
     private static void viewQueueSummary() {
         System.out.println("\n==========================================================================");
         System.out.println("                         OVERALL QUEUE STATUS SUMMARY                     ");
@@ -144,23 +119,15 @@ public class SupervisorMenu {
 
             System.out.println("QUEUE STATUS\t\tTOTAL TICKETS");
             System.out.println("--------------------------------------------------------------------------");
-
-            boolean hasRows = false;
             while (rs.next()) {
-                hasRows = true;
                 System.out.println(
                         rs.getString("status") + "\t\t\t" +
                                 rs.getInt("count")
                 );
             }
-
-            if (!hasRows) {
-                System.out.println(" No queue tickets generated in the system yet.");
-            }
             System.out.println("==========================================================================");
-
         } catch (SQLException e) {
-            System.err.println("Error fetching queue summary: " + e.getMessage());
+            System.err.println("Error: " + e.getMessage());
         }
     }
 }

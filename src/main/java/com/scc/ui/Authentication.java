@@ -37,7 +37,7 @@ public class Authentication {
 
                         switch (role) {
                             case "ADMIN":
-                                AdminMenu.showMenu(sc, userDao);
+                                AdminMenu.showMenu(sc, userDao, new com.scc.Model.User(0, username, "", "ADMIN", "ACTIVE"));
                                 break;
                             case "STUDENT":
                                 StudentMenu.showMenu(sc, username);
@@ -76,20 +76,12 @@ public class Authentication {
                         roleChoice = -1;
                     }
 
-                    String registerRole;
-                    switch (roleChoice) {
-                        case 1:
-                            registerRole = "ADMIN";
-                            break;
-                        case 2:
-                            registerRole = "STAFF";
-                            break;
-                        case 3:
-                            registerRole = "SUPERVISOR";
-                            break;
-                        default:
-                            registerRole = null;
-                    }
+                    String registerRole = switch (roleChoice) {
+                        case 1 -> "ADMIN";
+                        case 2 -> "STAFF";
+                        case 3 -> "SUPERVISOR";
+                        default -> null;
+                    };
 
                     if (registerRole != null) {
                         userDao.registerUser(user, pass, registerRole, "PENDING");
