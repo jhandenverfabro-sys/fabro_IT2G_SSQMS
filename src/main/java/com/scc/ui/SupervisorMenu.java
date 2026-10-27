@@ -20,7 +20,7 @@ public class SupervisorMenu {
             System.out.println("1. View All Queue Activity Logs");
             System.out.println("2. View Staff Performance Summary");
             System.out.println("3. View Overall System Queue Summary");
-            System.out.println("4. Logout / Back");
+            System.out.println("4. Logout");
             System.out.print("Choose an option: ");
 
             String choice = sc.nextLine();

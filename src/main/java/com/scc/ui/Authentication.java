@@ -64,10 +64,9 @@ public class Authentication {
                     String pass = sc.nextLine();
 
                     System.out.println("Select Role:");
-                    System.out.println("[1] STUDENT");
-                    System.out.println("[2] ADMIN");
-                    System.out.println("[3] STAFF");
-                    System.out.println("[4] SUPERVISOR");
+                    System.out.println("[1] ADMIN");
+                    System.out.println("[2] STAFF");
+                    System.out.println("[3] SUPERVISOR");
                     System.out.print("Choose role option: ");
 
                     int roleChoice;
@@ -80,15 +79,12 @@ public class Authentication {
                     String registerRole;
                     switch (roleChoice) {
                         case 1:
-                            registerRole = "STUDENT";
-                            break;
-                        case 2:
                             registerRole = "ADMIN";
                             break;
-                        case 3:
+                        case 2:
                             registerRole = "STAFF";
                             break;
-                        case 4:
+                        case 3:
                             registerRole = "SUPERVISOR";
                             break;
                         default:

@@ -18,15 +18,13 @@ public class StudentMenu {
         int studentId = getStudentIdByUsername(studentUsername);
 
         if (studentId == -1) {
-            System.out.println("\nNotice: No student record profile linked to username: " + studentUsername);
-            System.out.print("Enter your full Student Name: ");
-            String studentName = sc.nextLine();
-            System.out.print("Enter Course & Year (e.g. BSIT-3): ");
-            String course = sc.nextLine();
-            System.out.print("Enter Contact Number: ");
-            String contact = sc.nextLine();
-
-            studentId = createStudentProfile(studentName, course, contact);
+            System.out.println("\n==========================================================================");
+            System.out.println(" Notice: Your student account is not yet verified or enrolled by Admin/Staff.");
+            System.out.println(" Please contact school administration to verify and enroll your record.");
+            System.out.println("==========================================================================");
+            System.out.println("Press Enter to return to main login...");
+            sc.nextLine();
+            return;
         }
 
         while (!back) {
@@ -185,6 +183,8 @@ public class StudentMenu {
     }
 
     private static int getStudentIdByUsername(String username) {
+        // Can be linked if username matches student record or table design.
+        // For now, looking up active student records.
         String sql = "SELECT student_id FROM Student LIMIT 1";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -196,26 +196,5 @@ public class StudentMenu {
             // ignore
         }
         return -1;
-    }
-
-    private static int createStudentProfile(String name, String course, String contact) {
-        String sql = "INSERT INTO Student (student_name, course, year_level, contact_number, status) VALUES (?, ?, 1, ?, 'ACTIVE')";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-
-            pstmt.setString(1, name);
-            pstmt.setString(2, course);
-            pstmt.setString(3, contact);
-            pstmt.executeUpdate();
-
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    return generatedKeys.getInt(1);
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Error creating student profile: " + e.getMessage());
-        }
-        return 1;
     }
 }
