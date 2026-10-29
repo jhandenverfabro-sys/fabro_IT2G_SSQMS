@@ -11,18 +11,22 @@ import java.util.List;
 public class userDao {
 
     public boolean registerUser(String username, String password, String role, String status) {
+        String salt = SecurityUtil.generateSalt();
+        String hashedPassword = SecurityUtil.hashPassword(password, salt);
+        String secureStoredValue = salt + ":" + hashedPassword;
+
         String sql = "INSERT INTO users (username, password, role, status) VALUES (?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            pstmt.setString(2, secureStoredValue);
             pstmt.setString(3, role.toUpperCase());
             pstmt.setString(4, status.toUpperCase());
 
-            int rows = pstmt.executeUpdate();
+            pstmt.executeUpdate();
             System.out.println("-> Registration successful! Account is pending approval.");
-            return rows > 0;
+            return true;
         } catch (SQLException e) {
             System.err.println("Registration failed (Username might already exist): " + e.getMessage());
             return false;
@@ -31,6 +35,10 @@ public class userDao {
 
     // --- Atomic Staff/Supervisor Registration (Inserts to both users & Staff tables) ---
     public boolean registerStaff(String staffName, String username, String password, String role) {
+        String salt = SecurityUtil.generateSalt();
+        String hashedPassword = SecurityUtil.hashPassword(password, salt);
+        String secureStoredValue = salt + ":" + hashedPassword;
+
         String insertUserSql = "INSERT INTO users (username, password, role, status) VALUES (?, ?, ?, 'PENDING')";
         String insertStaffSql = "INSERT INTO Staff (staff_name, username, password, role, status) VALUES (?, ?, ?, ?, 'ACTIVE')";
 
@@ -42,14 +50,14 @@ public class userDao {
 
                 // 1. Insert into users table for portal authentication
                 userStmt.setString(1, username);
-                userStmt.setString(2, password);
+                userStmt.setString(2, secureStoredValue);
                 userStmt.setString(3, role.toUpperCase());
                 userStmt.executeUpdate();
 
                 // 2. Insert into Staff table directory profile automatically
                 staffStmt.setString(1, staffName);
                 staffStmt.setString(2, username);
-                staffStmt.setString(3, password);
+                staffStmt.setString(3, secureStoredValue);
                 staffStmt.setString(4, role.toUpperCase());
                 staffStmt.executeUpdate();
 
@@ -78,8 +86,7 @@ public class userDao {
             pstmt.setString(2, newStatus.toUpperCase());
             pstmt.setInt(3, userId);
 
-            int rowsUpdated = pstmt.executeUpdate();
-            return rowsUpdated > 0;
+            return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
             System.err.println("Error updating user role and status: " + e.getMessage());
             return false;
@@ -87,17 +94,29 @@ public class userDao {
     }
 
     public String loginUser(String username, String password) {
-        String sql = "SELECT role FROM users WHERE username = ? AND password = ? AND status = 'ACTIVE'";
+        String sql = "SELECT password, role FROM users WHERE username = ? AND status = 'ACTIVE'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("role");
+                    String storedCredentials = rs.getString("password");
+                    String role = rs.getString("role");
+
+                    if (storedCredentials.contains(":")) {
+                        String[] parts = storedCredentials.split(":");
+                        String salt = parts[0];
+                        String hash = parts[1];
+
+                        if (SecurityUtil.verifyPassword(password, salt, hash)) {
+                            return role;
+                        }
+                    } else if (storedCredentials.equals(password)) {
+                        return role; // Fallback for legacy unhashed entries
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -108,7 +127,7 @@ public class userDao {
 
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT user_id, username, password, role, status FROM users";
+        String sql = "SELECT user_id, username, role, status FROM users";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -118,7 +137,7 @@ public class userDao {
                 users.add(new User(
                         rs.getInt("user_id"),
                         rs.getString("username"),
-                        rs.getString("password"),
+                        "[SECURED]",
                         rs.getString("role"),
                         rs.getString("status")
                 ));
@@ -131,7 +150,7 @@ public class userDao {
 
     public List<User> getPendingUsers() {
         List<User> users = new ArrayList<>();
-        String sql = "SELECT user_id, username, password, role, status FROM users WHERE status = 'PENDING'";
+        String sql = "SELECT user_id, username, role, status FROM users WHERE status = 'PENDING'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -141,7 +160,7 @@ public class userDao {
                 users.add(new User(
                         rs.getInt("user_id"),
                         rs.getString("username"),
-                        rs.getString("password"),
+                        "[SECURED]",
                         rs.getString("role"),
                         rs.getString("status")
                 ));
@@ -159,8 +178,7 @@ public class userDao {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
-            int rowsAffected = pstmt.executeUpdate();
-            return rowsAffected > 0;
+            return pstmt.executeUpdate() > 0;
 
         } catch (SQLException e) {
             System.err.println("Error approving user: " + e.getMessage());
@@ -169,6 +187,10 @@ public class userDao {
     }
 
     public boolean createStudent(String username, String password, String name, String course, int yearLevel, String contactNumber) {
+        String salt = SecurityUtil.generateSalt();
+        String hashedPassword = SecurityUtil.hashPassword(password, salt);
+        String secureStoredValue = salt + ":" + hashedPassword;
+
         String insertUserSql = "INSERT INTO users (username, password, role, status) VALUES (?, ?, 'STUDENT', 'ACTIVE')";
         String insertStudentSql = "INSERT INTO Student (student_name, course, year_level, contact_number, status) VALUES (?, ?, ?, ?, 'ACTIVE')";
 
@@ -179,7 +201,7 @@ public class userDao {
                  PreparedStatement studentStmt = conn.prepareStatement(insertStudentSql)) {
 
                 userStmt.setString(1, username);
-                userStmt.setString(2, password);
+                userStmt.setString(2, secureStoredValue);
                 userStmt.executeUpdate();
 
                 studentStmt.setString(1, name);

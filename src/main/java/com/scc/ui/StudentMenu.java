@@ -32,7 +32,7 @@ public class StudentMenu {
             System.out.println("=========================================");
             System.out.println("1. View Available Services");
             System.out.println("2. Generate / Join Queue");
-            System.out.println("3. View My Queue Status");
+            System.out.println("3. View My Queue Status & Wait Time");
             System.out.println("4. Logout");
             System.out.print("Choose an option: ");
 
@@ -120,33 +120,62 @@ public class StudentMenu {
     }
 
     private static void viewMyQueueStatus(int studentId) {
-        System.out.println("\n==========================================================================");
-        System.out.println("                         MY QUEUE STATUS HISTORY                          ");
-        System.out.println("==========================================================================");
+        System.out.println("\n=========================================================================================");
+        System.out.println("                         MY QUEUE STATUS & ESTIMATED WAIT TIME                           ");
+        System.out.println("=========================================================================================");
 
-        String sql = "SELECT q.queue_number, sv.service_name, q.queue_date, q.queue_time, q.status " +
+        String sql = "SELECT q.queue_id, q.queue_number, sv.service_name, q.queue_date, q.queue_time, q.status " +
                 "FROM Queue q JOIN Services sv ON q.service_id = sv.service_id WHERE q.student_id = ? ORDER BY q.queue_id DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, studentId);
             try (ResultSet rs = pstmt.executeQuery()) {
-                System.out.println("QUEUE #\t\tSERVICE\t\tDATE\t\tTIME\t\tSTATUS");
-                System.out.println("--------------------------------------------------------------------------");
+                System.out.println("QUEUE #\t\tSERVICE\t\tDATE\t\tTIME\t\tSTATUS\t\tEST. WAIT");
+                System.out.println("-----------------------------------------------------------------------------------------");
+                boolean hasRows = false;
                 while (rs.next()) {
+                    hasRows = true;
+                    String status = rs.getString("status");
+                    String estWait = "N/A";
+
+                    if ("WAITING".equalsIgnoreCase(status)) {
+                        // Calculate position ahead in queue for unique wait time estimation (~4 mins per ticket)
+                        int peopleAhead = getPeopleAheadCount(conn, rs.getInt("queue_id"));
+                        int mins = (peopleAhead + 1) * 4;
+                        estWait = "~" + mins + " mins";
+                    } else if ("SERVING".equalsIgnoreCase(status)) {
+                        estWait = "Serving Now!";
+                    }
+
                     System.out.println(
                             rs.getString("queue_number") + "\t\t" +
                                     rs.getString("service_name") + "\t" +
                                     rs.getString("queue_date") + "\t" +
                                     rs.getString("queue_time") + "\t" +
-                                    rs.getString("status")
+                                    status + "\t\t" +
+                                    estWait
                     );
                 }
-                System.out.println("==========================================================================");
+                if (!hasRows) System.out.println(" No queue history found.");
+                System.out.println("=========================================================================================");
             }
         } catch (SQLException e) {
             System.err.println("Error: " + e.getMessage());
         }
+    }
+
+    private static int getPeopleAheadCount(Connection conn, int queueId) {
+        String sql = "SELECT COUNT(*) AS ahead FROM Queue WHERE status = 'WAITING' AND queue_id < ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, queueId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) return rs.getInt("ahead");
+            }
+        } catch (SQLException e) {
+            // ignore
+        }
+        return 0;
     }
 
     private static int getStudentIdByUsername(String username) {
@@ -158,6 +187,6 @@ public class StudentMenu {
         } catch (SQLException e) {
             // ignore
         }
-        return 1; // Default fallback ID for smooth testing
+        return 1;
     }
 }

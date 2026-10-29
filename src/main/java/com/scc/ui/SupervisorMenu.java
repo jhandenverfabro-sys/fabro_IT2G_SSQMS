@@ -17,7 +17,7 @@ public class SupervisorMenu {
             System.out.println("\n=======================================");
             System.out.println("          SUPERVISOR DASHBOARD         ");
             System.out.println("=========================================");
-            System.out.println("1. View All Queue Activity Logs");
+            System.out.println("1. View All Queue Activity Audit Logs");
             System.out.println("2. View Staff Performance Summary");
             System.out.println("3. View Overall System Queue Summary");
             System.out.println("4. Logout");
@@ -62,7 +62,9 @@ public class SupervisorMenu {
 
             System.out.println("LOG ID\tQUEUE #\t\tSTAFF NAME\tACTION\t\tDATE\t\tTIME");
             System.out.println("--------------------------------------------------------------------------");
+            boolean hasRows = false;
             while (rs.next()) {
+                hasRows = true;
                 System.out.println(
                         rs.getInt("log_id") + "\t\t" +
                                 rs.getString("queue_number") + "\t\t" +
@@ -72,6 +74,7 @@ public class SupervisorMenu {
                                 rs.getString("time")
                 );
             }
+            if (!hasRows) System.out.println(" No audit logs recorded yet.");
             System.out.println("==========================================================================");
         } catch (SQLException e) {
             System.err.println("Error: " + e.getMessage());
@@ -119,12 +122,15 @@ public class SupervisorMenu {
 
             System.out.println("QUEUE STATUS\t\tTOTAL TICKETS");
             System.out.println("--------------------------------------------------------------------------");
+            boolean hasRows = false;
             while (rs.next()) {
+                hasRows = true;
                 System.out.println(
-                        rs.getString("status") + "\t\t\t" +
+                        rs.getString("status").toUpperCase() + "\t\t\t" +
                                 rs.getInt("count")
                 );
             }
+            if (!hasRows) System.out.println(" No queue records available.");
             System.out.println("==========================================================================");
         } catch (SQLException e) {
             System.err.println("Error: " + e.getMessage());
