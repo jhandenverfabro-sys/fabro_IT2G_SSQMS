@@ -2,7 +2,8 @@ package com.scc.ui;
 
 import com.scc.Model.User;
 import com.scc.dao.DatabaseConnection;
-import com.scc.dao.userDao;
+import com.scc.dao.StudentDao;
+import com.scc.dao.UserDao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,8 +13,9 @@ import java.util.List;
 import java.util.Scanner;
 
 public class AdminMenu {
+    private static final StudentDao studentDao = new StudentDao();
 
-    public static void showMenu(Scanner sc, userDao userDao, User currentAdmin) {
+    public static void showMenu(Scanner sc, UserDao UserDao, User currentAdmin) {
         boolean back = false;
 
         while (!back) {
@@ -28,23 +30,23 @@ public class AdminMenu {
             System.out.println("6. Logout");
             System.out.print("Choose an option: ");
 
-            String choice = sc.nextLine();
+            String choice = sc.nextLine().trim();
 
             switch (choice) {
                 case "1":
-                    printUserTable(userDao.getAllUsers(), "ALL SYSTEM USERS");
+                    printUserTable(UserDao.getAllUsers(), "ALL SYSTEM USERS");
                     break;
                 case "2":
-                    printUserTable(userDao.getPendingUsers(), "PENDING ACCOUNT REGISTRATIONS");
+                    printUserTable(UserDao.getPendingUsers(), "PENDING ACCOUNT REGISTRATIONS");
                     break;
                 case "3":
-                    handleUserRoleAndStatusUpdate(sc, userDao, currentAdmin);
+                    handleUserRoleAndStatusUpdate(sc, UserDao, currentAdmin);
                     break;
                 case "4":
-                    handleUserApproval(sc, userDao);
+                    handleUserApproval(sc, UserDao);
                     break;
                 case "5":
-                    manageStudentsMenu(sc, userDao);
+                    manageStudentsMenu(sc);
                     break;
                 case "6":
                     back = true;
@@ -52,17 +54,6 @@ public class AdminMenu {
                     break;
                 default:
                     System.out.println("Invalid choice. Please try again.");
-            }
-        }
-    }
-
-    private static int readIntInput(Scanner sc, String prompt) {
-        while (true) {
-            System.out.print(prompt);
-            try {
-                return Integer.parseInt(sc.nextLine().trim());
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid number (or 0 to cancel).");
             }
         }
     }
@@ -89,9 +80,9 @@ public class AdminMenu {
         }
     }
 
-    private static void handleUserRoleAndStatusUpdate(Scanner sc, userDao userDao, User currentAdmin) {
+    private static void handleUserRoleAndStatusUpdate(Scanner sc, UserDao userDao, User currentAdmin) {
         printUserTable(userDao.getAllUsers(), "ALL SYSTEM USERS");
-        int targetId = readIntInput(sc, "Enter Target User ID to Update (or 0 to cancel): ");
+        int targetId = Authentication.readIntInput(sc, "Enter Target User ID to Update (or 0 to cancel): ");
         if (targetId == 0) return;
 
         if (targetId == currentAdmin.id()) {
@@ -109,28 +100,22 @@ public class AdminMenu {
         }
     }
 
-    private static void handleUserApproval(Scanner sc, userDao userDao) {
+    private static void handleUserApproval(Scanner sc, UserDao userDao) {
         List<User> pending = userDao.getPendingUsers();
         printUserTable(pending, "PENDING ACCOUNTS AVAILABLE FOR APPROVAL");
-
         if (pending.isEmpty()) return;
 
-        int targetId = readIntInput(sc, "Enter Target User ID to Approve (or enter 0 to cancel): ");
+        int targetId = Authentication.readIntInput(sc, "Enter Target User ID to Approve (or enter 0 to cancel): ");
         if (targetId == 0) return;
 
-        boolean exists = pending.stream().anyMatch(u -> u.id() == targetId);
-        if (exists) {
-            if (userDao.approveUser(targetId)) {
-                System.out.println("-> Success! User ID " + targetId + " status updated to 'ACTIVE'.");
-            } else {
-                System.out.println("-> Failed to approve user.");
-            }
+        if (userDao.approveUser(targetId)) {
+            System.out.println("-> Success! User ID " + targetId + " status updated to 'ACTIVE'.");
         } else {
-            System.out.println("-> Error: User ID not found in pending list.");
+            System.out.println("-> Failed to approve user.");
         }
     }
 
-    public static void manageStudentsMenu(Scanner sc, userDao userDao) {
+    public static void manageStudentsMenu(Scanner sc) {
         boolean back = false;
         while (!back) {
             System.out.println("\n=======================================");
@@ -143,7 +128,7 @@ public class AdminMenu {
             System.out.println("5. Back");
             System.out.print("Choose an option: ");
 
-            String choice = sc.nextLine();
+            String choice = sc.nextLine().trim();
             switch (choice) {
                 case "1":
                     System.out.print("Enter Student Username: ");
@@ -154,11 +139,11 @@ public class AdminMenu {
                     String name = sc.nextLine();
                     System.out.print("Enter Course: ");
                     String course = sc.nextLine();
-                    int year = readIntInput(sc, "Enter Year Level: ");
+                    int year = Authentication.readIntInput(sc, "Enter Year Level: ");
                     System.out.print("Enter Contact Number: ");
                     String contact = sc.nextLine();
 
-                    if (userDao.createStudent(username, password, name, course, year, contact)) {
+                    if (studentDao.createStudent(username, password, name, course, year, contact)) {
                         System.out.println("-> Success! Student created and enrolled.");
                     } else {
                         System.out.println("-> Enrollment failed.");
@@ -169,16 +154,16 @@ public class AdminMenu {
                     break;
                 case "3":
                     viewStudentDirectory();
-                    int updateId = readIntInput(sc, "Enter Student ID to Update: ");
+                    int updateId = Authentication.readIntInput(sc, "Enter Student ID to Update: ");
                     System.out.print("Enter New Full Name: ");
                     String newName = sc.nextLine();
                     System.out.print("Enter New Course: ");
                     String newCourse = sc.nextLine();
-                    int newYear = readIntInput(sc, "Enter New Year Level: ");
+                    int newYear = Authentication.readIntInput(sc, "Enter New Year Level: ");
                     System.out.print("Enter New Contact Number: ");
                     String newContact = sc.nextLine();
 
-                    if (userDao.updateStudent(updateId, newName, newCourse, newYear, newContact)) {
+                    if (studentDao.updateStudent(updateId, newName, newCourse, newYear, newContact)) {
                         System.out.println("-> Success! Student updated.");
                     } else {
                         System.out.println("-> Update failed.");
@@ -186,8 +171,8 @@ public class AdminMenu {
                     break;
                 case "4":
                     viewStudentDirectory();
-                    int deleteId = readIntInput(sc, "Enter Student ID to Delete (0 to cancel): ");
-                    if (deleteId != 0 && userDao.deleteStudent(deleteId)) {
+                    int deleteId = Authentication.readIntInput(sc, "Enter Student ID to Delete (0 to cancel): ");
+                    if (deleteId != 0 && studentDao.deleteStudent(deleteId)) {
                         System.out.println("-> Success! Student deleted.");
                     } else {
                         System.out.println("-> Deletion failed.");
@@ -234,13 +219,11 @@ public class AdminMenu {
         System.out.println("\n======================================================================");
         System.out.println(" " + title);
         System.out.println("======================================================================");
-
         if (users.isEmpty()) {
             System.out.println(" No records found.");
             System.out.println("======================================================================");
             return;
         }
-
         System.out.println("ID\tUSERNAME\t\tROLE\t\tSTATUS");
         System.out.println("----------------------------------------------------------------------");
         for (User u : users) {

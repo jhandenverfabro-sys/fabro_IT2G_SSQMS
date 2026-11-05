@@ -1,14 +1,16 @@
 package com.scc.ui;
 
-import com.scc.dao.userDao;
+import com.scc.dao.UserDao;
 import java.util.Scanner;
 
 public class Authentication {
     public static final Scanner sc = new Scanner(System.in);
-    private static final userDao userDao = new userDao();
+    private static final UserDao UserDao = new UserDao();
 
     public static void start() {
         boolean running = true;
+        String loggedInUsername = null;
+        int loggedInUserId = -1;
 
         while (running) {
             System.out.println("\n=======================================");
@@ -30,14 +32,17 @@ public class Authentication {
                     System.out.print("Enter password: ");
                     String password = sc.nextLine();
 
-                    String role = userDao.loginUser(username, password);
+                    String role = UserDao.loginUser(username, password);
 
                     if (role != null) {
                         System.out.println("\nLogin Successful! Role: " + role);
 
+                        loggedInUsername = username;
+                        loggedInUserId = UserDao.getUserIdByUsername(username);
+
                         switch (role) {
                             case "ADMIN":
-                                AdminMenu.showMenu(sc, userDao, new com.scc.Model.User(0, username, "", "ADMIN", "ACTIVE"));
+                                AdminMenu.showMenu(sc, UserDao, new com.scc.Model.User(loggedInUserId, username, "", "ADMIN", "ACTIVE"));
                                 break;
                             case "STUDENT":
                                 StudentMenu.showMenu(sc, username);
@@ -51,6 +56,12 @@ public class Authentication {
                             default:
                                 System.out.println("Welcome, " + role + "!");
                         }
+
+                        // MANDATORY LOG #1: Logout trigger
+                        UserDao.logLogout(loggedInUserId, loggedInUsername);
+                        loggedInUsername = null;
+                        loggedInUserId = -1;
+
                     } else {
                         System.out.println("Invalid username, password, or account pending approval!");
                     }
@@ -84,13 +95,17 @@ public class Authentication {
                     };
 
                     if (registerRole != null) {
-                        userDao.registerUser(user, pass, registerRole, "PENDING");
+                        UserDao.registerUser(user, pass, registerRole, "PENDING");
+                        System.out.println("Registration successful. Account is pending approval.");
                     } else {
                         System.out.println("Invalid role selection!");
                     }
                     break;
 
                 case "3":
+                    if (loggedInUsername != null) {
+                        UserDao.logLogout(loggedInUserId, loggedInUsername);
+                    }
                     System.out.println("Exiting application. Goodbye!");
                     running = false;
                     break;

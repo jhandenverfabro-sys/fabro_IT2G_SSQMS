@@ -7,10 +7,10 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("Starting Student Service Queue Management System...");
 
-        // 1. Initialize tables and foreign keys
+        // 1. Initialize tables and constraints
         DatabaseInitializer.initialize();
 
-        // 2. Launch authentication console
+        // 2. Launch console interface
         Authentication.start();
     }
 }

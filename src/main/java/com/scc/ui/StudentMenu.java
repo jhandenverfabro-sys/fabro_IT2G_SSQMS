@@ -1,6 +1,8 @@
 package com.scc.ui;
 
 import com.scc.dao.DatabaseConnection;
+import com.scc.dao.QueueDao;
+import com.scc.dao.StudentDao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,10 +14,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.Scanner;
 
 public class StudentMenu {
+    private static final StudentDao studentDao = new StudentDao();
+    private static final QueueDao queueDao = new QueueDao();
 
     public static void showMenu(Scanner sc, String studentUsername) {
         boolean back = false;
-        int studentId = getStudentIdByUsername(studentUsername);
+        int studentId = studentDao.getStudentIdByUsername(studentUsername);
 
         if (studentId == -1) {
             System.out.println("\n==========================================================================");
@@ -36,7 +40,7 @@ public class StudentMenu {
             System.out.println("4. Logout");
             System.out.print("Choose an option: ");
 
-            String choice = sc.nextLine();
+            String choice = sc.nextLine().trim();
 
             switch (choice) {
                 case "1":
@@ -90,32 +94,17 @@ public class StudentMenu {
 
     private static void generateQueueTicket(Scanner sc, int studentId) {
         viewServices();
-        System.out.print("Enter Service ID to queue for (0 to cancel): ");
-        int serviceId;
-        try {
-            serviceId = Integer.parseInt(sc.nextLine());
-        } catch (NumberFormatException e) {
-            return;
-        }
-
+        int serviceId = Authentication.readIntInput(sc, "Enter Service ID to queue for (0 to cancel): ");
         if (serviceId == 0) return;
 
         String queueNumber = "Q-" + (int)(Math.random() * 900 + 100);
-        String sql = "INSERT INTO Queue (queue_number, student_id, service_id, queue_date, queue_time, status) VALUES (?, ?, ?, ?, ?, 'WAITING')";
+        String currentDate = LocalDate.now().toString();
+        String currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, queueNumber);
-            pstmt.setInt(2, studentId);
-            pstmt.setInt(3, serviceId);
-            pstmt.setString(4, LocalDate.now().toString());
-            pstmt.setString(5, LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-
-            pstmt.executeUpdate();
+        if (queueDao.createQueueTicket(queueNumber, studentId, serviceId, currentDate, currentTime)) {
             System.out.println("-> Success! Queue Ticket Generated: [" + queueNumber + "]");
-        } catch (SQLException e) {
-            System.err.println("Failed to generate ticket: " + e.getMessage());
+        } else {
+            System.out.println("-> Failed to generate ticket.");
         }
     }
 
@@ -140,7 +129,6 @@ public class StudentMenu {
                     String estWait = "N/A";
 
                     if ("WAITING".equalsIgnoreCase(status)) {
-                        // Calculate position ahead in queue for unique wait time estimation (~4 mins per ticket)
                         int peopleAhead = getPeopleAheadCount(conn, rs.getInt("queue_id"));
                         int mins = (peopleAhead + 1) * 4;
                         estWait = "~" + mins + " mins";
@@ -176,17 +164,5 @@ public class StudentMenu {
             // ignore
         }
         return 0;
-    }
-
-    private static int getStudentIdByUsername(String username) {
-        String sql = "SELECT student_id FROM Student LIMIT 1";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-            if (rs.next()) return rs.getInt("student_id");
-        } catch (SQLException e) {
-            // ignore
-        }
-        return 1;
     }
 }
