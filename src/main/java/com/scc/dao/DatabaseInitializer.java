@@ -91,7 +91,8 @@ public class DatabaseInitializer {
             statement.execute(queueActivityLogTable);
             statement.execute(activityLogTable);
 
-            System.out.println("All SSQMS database tables bound and initialized successfully.");
+            System.out.println("Tables is bound and initialized successfully. " +
+                    "\nPlease proceed to the Student Service Queue Management System...");
 
         } catch (SQLException e) {
             System.err.println("Database table binding failed: " + e.getMessage());
