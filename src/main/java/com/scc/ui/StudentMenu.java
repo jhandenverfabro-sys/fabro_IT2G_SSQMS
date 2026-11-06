@@ -47,7 +47,7 @@ public class StudentMenu {
                     viewServices();
                     break;
                 case "2":
-                    generateQueueTicket(sc, studentId);
+                    generateQueueTicket(sc, studentId, studentUsername);
                     break;
                 case "3":
                     viewMyQueueStatus(studentId);
@@ -92,17 +92,24 @@ public class StudentMenu {
         }
     }
 
-    private static void generateQueueTicket(Scanner sc, int studentId) {
+    private static void generateQueueTicket(Scanner sc, int studentId, String studentUsername) {
         viewServices();
-        int serviceId = Authentication.readIntInput(sc, "Enter Service ID to queue for (0 to cancel): ");
+        System.out.print("Enter Service ID to queue for (0 to cancel): ");
+
+        int serviceId;
+        try {
+            serviceId = Integer.parseInt(sc.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.out.println("[!] Invalid input. Generation cancelled.");
+            return;
+        }
+
         if (serviceId == 0) return;
 
-        String queueNumber = "Q-" + (int)(Math.random() * 900 + 100);
-        String currentDate = LocalDate.now().toString();
-        String currentTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
-
-        if (queueDao.createQueueTicket(queueNumber, studentId, serviceId, currentDate, currentTime)) {
-            System.out.println("-> Success! Queue Ticket Generated: [" + queueNumber + "]");
+        // Pass student details and service selection to trigger Audit Log Row 3 (TICKET_CREATED)
+        String serviceName = "General Service"; // or fetch dynamically from DB if desired
+        if (queueDao.createTicket(studentId, studentUsername, serviceName)) {
+            System.out.println("-> Success! Queue Ticket Generated for " + studentUsername);
         } else {
             System.out.println("-> Failed to generate ticket.");
         }
@@ -114,7 +121,7 @@ public class StudentMenu {
         System.out.println("=========================================================================================");
 
         String sql = "SELECT q.queue_id, q.queue_number, sv.service_name, q.queue_date, q.queue_time, q.status " +
-                "FROM Queue q JOIN Services sv ON q.service_id = sv.service_id WHERE q.student_id = ? ORDER BY q.queue_id DESC";
+                "FROM queue q JOIN Services sv ON q.service_id = sv.service_id WHERE q.student_id = ? ORDER BY q.queue_id DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -154,7 +161,7 @@ public class StudentMenu {
     }
 
     private static int getPeopleAheadCount(Connection conn, int queueId) {
-        String sql = "SELECT COUNT(*) AS ahead FROM Queue WHERE status = 'WAITING' AND queue_id < ?";
+        String sql = "SELECT COUNT(*) AS ahead FROM queue WHERE status = 'WAITING' AND queue_id < ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, queueId);
             try (ResultSet rs = pstmt.executeQuery()) {

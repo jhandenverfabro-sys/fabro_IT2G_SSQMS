@@ -1,6 +1,7 @@
 package com.scc.ui;
 
 import com.scc.Model.User;
+import com.scc.dao.ActivityLogDao;
 import com.scc.dao.DatabaseConnection;
 import com.scc.dao.StudentDao;
 import com.scc.dao.UserDao;
@@ -14,6 +15,7 @@ import java.util.Scanner;
 
 public class AdminMenu {
     private static final StudentDao studentDao = new StudentDao();
+    private static final ActivityLogDao activityLogDao = new ActivityLogDao();
 
     public static void showMenu(Scanner sc, UserDao UserDao, User currentAdmin) {
         boolean back = false;
@@ -27,7 +29,8 @@ public class AdminMenu {
             System.out.println("3. Update User Role & Status");
             System.out.println("4. Approve User Account");
             System.out.println("5. Manage Verified Students");
-            System.out.println("6. Logout");
+            System.out.println("6. View System Audit Logs"); // New Deliverable 8 Feature
+            System.out.println("7. Logout");
             System.out.print("Choose an option: ");
 
             String choice = sc.nextLine().trim();
@@ -43,12 +46,15 @@ public class AdminMenu {
                     handleUserRoleAndStatusUpdate(sc, UserDao, currentAdmin);
                     break;
                 case "4":
-                    handleUserApproval(sc, UserDao);
+                    handleUserApproval(sc, UserDao, currentAdmin);
                     break;
                 case "5":
                     manageStudentsMenu(sc);
                     break;
                 case "6":
+                    ActivityLogViewer.showLogViewer(sc, activityLogDao);
+                    break;
+                case "7":
                     back = true;
                     System.out.println("Logging out from Admin menu...");
                     break;
@@ -82,7 +88,14 @@ public class AdminMenu {
 
     private static void handleUserRoleAndStatusUpdate(Scanner sc, UserDao userDao, User currentAdmin) {
         printUserTable(userDao.getAllUsers(), "ALL SYSTEM USERS");
-        int targetId = Authentication.readIntInput(sc, "Enter Target User ID to Update (or 0 to cancel): ");
+        System.out.print("Enter Target User ID to Update (or 0 to cancel): ");
+
+        int targetId;
+        try {
+            targetId = Integer.parseInt(sc.nextLine().trim());
+        } catch (NumberFormatException e) {
+            return;
+        }
         if (targetId == 0) return;
 
         if (targetId == currentAdmin.id()) {
@@ -93,22 +106,30 @@ public class AdminMenu {
         String newRole = readValidRole(sc);
         String newStatus = readValidStatus(sc);
 
-        if (userDao.updateUserRoleAndStatus(targetId, newRole, newStatus)) {
+        // Passes admin ID to trigger Audit Log Row 2 (USER_UPDATED)
+        if (userDao.updateUserRoleAndStatus(currentAdmin.id(), targetId, newRole, newStatus)) {
             System.out.println("-> Success! User ID " + targetId + " updated.");
         } else {
             System.out.println("-> Failed to update user.");
         }
     }
 
-    private static void handleUserApproval(Scanner sc, UserDao userDao) {
+    private static void handleUserApproval(Scanner sc, UserDao userDao, User currentAdmin) {
         List<User> pending = userDao.getPendingUsers();
         printUserTable(pending, "PENDING ACCOUNTS AVAILABLE FOR APPROVAL");
         if (pending.isEmpty()) return;
 
-        int targetId = Authentication.readIntInput(sc, "Enter Target User ID to Approve (or enter 0 to cancel): ");
+        System.out.print("Enter Target User ID to Approve (or enter 0 to cancel): ");
+        int targetId;
+        try {
+            targetId = Integer.parseInt(sc.nextLine().trim());
+        } catch (NumberFormatException e) {
+            return;
+        }
         if (targetId == 0) return;
 
-        if (userDao.approveUser(targetId)) {
+        // Passes admin ID to trigger Audit Log Row 2 (USER_APPROVED)
+        if (userDao.approveUser(currentAdmin.id(), targetId)) {
             System.out.println("-> Success! User ID " + targetId + " status updated to 'ACTIVE'.");
         } else {
             System.out.println("-> Failed to approve user.");
@@ -139,7 +160,13 @@ public class AdminMenu {
                     String name = sc.nextLine();
                     System.out.print("Enter Course: ");
                     String course = sc.nextLine();
-                    int year = Authentication.readIntInput(sc, "Enter Year Level: ");
+                    System.out.print("Enter Year Level: ");
+                    int year;
+                    try {
+                        year = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        year = 1;
+                    }
                     System.out.print("Enter Contact Number: ");
                     String contact = sc.nextLine();
 
@@ -154,12 +181,24 @@ public class AdminMenu {
                     break;
                 case "3":
                     viewStudentDirectory();
-                    int updateId = Authentication.readIntInput(sc, "Enter Student ID to Update: ");
+                    System.out.print("Enter Student ID to Update: ");
+                    int updateId;
+                    try {
+                        updateId = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        break;
+                    }
                     System.out.print("Enter New Full Name: ");
                     String newName = sc.nextLine();
                     System.out.print("Enter New Course: ");
                     String newCourse = sc.nextLine();
-                    int newYear = Authentication.readIntInput(sc, "Enter New Year Level: ");
+                    System.out.print("Enter New Year Level: ");
+                    int newYear;
+                    try {
+                        newYear = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        newYear = 1;
+                    }
                     System.out.print("Enter New Contact Number: ");
                     String newContact = sc.nextLine();
 
@@ -171,7 +210,13 @@ public class AdminMenu {
                     break;
                 case "4":
                     viewStudentDirectory();
-                    int deleteId = Authentication.readIntInput(sc, "Enter Student ID to Delete (0 to cancel): ");
+                    System.out.print("Enter Student ID to Delete (0 to cancel): ");
+                    int deleteId;
+                    try {
+                        deleteId = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        deleteId = 0;
+                    }
                     if (deleteId != 0 && studentDao.deleteStudent(deleteId)) {
                         System.out.println("-> Success! Student deleted.");
                     } else {

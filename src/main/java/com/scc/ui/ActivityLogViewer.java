@@ -1,7 +1,8 @@
 package com.scc.ui;
 
+import com.scc.Model.ActivityLog;
 import com.scc.dao.ActivityLogDao;
-import java.sql.*;
+import java.util.List;
 import java.util.Scanner;
 
 public class ActivityLogViewer {
@@ -11,33 +12,34 @@ public class ActivityLogViewer {
 
         while (viewing) {
             System.out.println("\n=======================================================");
-            System.out.println("                 SYSTEM ACTIVITY LOGS                  ");
+            System.out.println("            VIEW SYSTEM AUDIT LOGS                     ");
             System.out.println("=======================================================");
-            System.out.println("[1] View All Logs");
+            System.out.println("[1] View All System Logs");
             System.out.println("[2] Filter Logs by User ID");
-            System.out.println("[3] Return to Main Menu");
+            System.out.println("[3] Return to Admin Menu");
             System.out.print("Choose an option: ");
 
-            // Input safety: Prevent crashes on non-numeric inputs[cite: 2]
             String input = sc.nextLine();
             int choice;
             try {
                 choice = Integer.parseInt(input.trim());
             } catch (NumberFormatException e) {
                 System.out.println("[!] Invalid input. Please enter a valid number (1-3).");
-                continue; // Re-prompts safely without crashing[cite: 2]
+                continue;
             }
 
             switch (choice) {
                 case 1:
-                    printLogsFromDatabase("SELECT log_id, user_id, category, message FROM activity_logs", -1);
+                    List<ActivityLog> allLogs = logDao.getAllLogs();
+                    printLogTable(allLogs);
                     break;
                 case 2:
                     System.out.print("Enter User ID to filter: ");
                     String idInput = sc.nextLine();
                     try {
                         int userId = Integer.parseInt(idInput.trim());
-                        printLogsFromDatabase("SELECT log_id, user_id, category, message FROM activity_logs WHERE user_id = ?", userId);
+                        List<ActivityLog> userLogs = logDao.getLogsByUserId(userId);
+                        printLogTable(userLogs);
                     } catch (NumberFormatException e) {
                         System.out.println("[!] Invalid User ID format. Returning to log menu.");
                     }
@@ -51,40 +53,24 @@ public class ActivityLogViewer {
         }
     }
 
-    // Formatted table using printf string formatters[cite: 2]
-    private static void printLogsFromDatabase(String sql, int filterUserId) {
-        System.out.println("\n+--------+---------+--------------------+---------------------------------------------------+");
-        System.out.printf("| %-6s | %-7s | %-18s | %-49s |\n", "Log ID", "User ID", "Category", "Description");
-        System.out.println("+--------+---------+--------------------+---------------------------------------------------+");
+    // Exact required printf format: `%-5s | %-8s | %-18s | %-35s | %-20s`
+    private static void printLogTable(List<ActivityLog> logs) {
+        System.out.println("\n+-------+----------+--------------------+-------------------------------------+----------------------+");
+        System.out.printf("| %-5s | %-8s | %-18s | %-35s | %-20s |\n", "ID", "User ID", "Action Type", "Description", "Timestamp");
+        System.out.println("+-------+----------+--------------------+-------------------------------------+----------------------+");
 
-        boolean hasRecords = false;
-
-        try (Connection conn = com.scc.dao.DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            if (filterUserId != -1) {
-                pstmt.setInt(1, filterUserId);
+        if (logs == null || logs.isEmpty()) {
+            System.out.printf("| %-95s |\n", "No log entries found.");
+        } else {
+            for (ActivityLog log : logs) {
+                System.out.printf("| %-5d | %-8d | %-18s | %-35s | %-20s |\n",
+                        log.getLogId(),
+                        log.getUserId(),
+                        log.getActionType(),
+                        log.getDescription(),
+                        log.getTimestamp());
             }
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    hasRecords = true;
-                    int logId = rs.getInt("log_id");
-                    int userId = rs.getInt("user_id");
-                    String category = rs.getString("category");
-                    String message = rs.getString("message");
-
-                    System.out.printf("| %-6d | %-7d | %-18s | %-49s |\n",
-                            logId, userId, category, message);
-                }
-            }
-        } catch (SQLException e) {
-            System.out.println("[!] Error fetching logs from database: " + e.getMessage());
         }
-
-        if (!hasRecords) {
-            System.out.printf("| %-81s |\n", "No log entries found.");
-        }
-        System.out.println("+--------+---------+--------------------+---------------------------------------------------+");
+        System.out.println("+-------+----------+--------------------+-------------------------------------+----------------------+");
     }
 }

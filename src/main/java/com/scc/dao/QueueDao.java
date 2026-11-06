@@ -8,7 +8,7 @@ import java.sql.Statement;
 
 public class QueueDao {
 
-    // MANDATORY LOG #3: Core Business Process (Queue Generation)
+    // Domain Business Action: TICKET_CREATED
     public boolean createTicket(int studentId, String username, String serviceType) {
         String sql = "INSERT INTO queue (student_id, service_id, status) VALUES (?, 1, 'WAITING')";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -21,10 +21,10 @@ public class QueueDao {
                 try (ResultSet rs = pstmt.getGeneratedKeys()) {
                     if (rs.next()) {
                         int queueId = rs.getInt(1);
-                        ActivityLogDao.logActivity(
+                        ActivityLogDao.logAction(
                                 studentId,
-                                "CORE_BUSINESS_PROCESS",
-                                "Processed queue ticket for Student " + username + " - Service: " + serviceType
+                                "TICKET_CREATED",
+                                "Processed queue ticket #" + queueId + " for Student " + username + " - Service: " + serviceType
                         );
                     }
                 }
@@ -36,7 +36,7 @@ public class QueueDao {
         return false;
     }
 
-    // MANDATORY LOG #4: Lifecycle / State Change (Queue Status Update)
+    // Domain Lifecycle Action: STATUS_UPDATED
     public boolean updateTicketStatus(int staffUserId, int queueId, String oldStatus, String newStatus) {
         String sql = "UPDATE queue SET status = ? WHERE queue_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -47,9 +47,9 @@ public class QueueDao {
 
             boolean success = pstmt.executeUpdate() > 0;
             if (success) {
-                ActivityLogDao.logActivity(
+                ActivityLogDao.logAction(
                         staffUserId,
-                        "LIFECYCLE_STATE_CHANGE",
+                        "STATUS_UPDATED",
                         "Updated Ticket #" + queueId + " status from " + oldStatus.toUpperCase() + " to " + newStatus.toUpperCase()
                 );
             }

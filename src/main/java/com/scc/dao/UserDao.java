@@ -27,7 +27,7 @@ public class UserDao {
             pstmt.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Registration failed (Username might already exist): " + e.getMessage());
+            System.err.println("Registration failed: " + e.getMessage());
             return false;
         }
     }
@@ -44,17 +44,22 @@ public class UserDao {
                 if (rs.next()) {
                     int userId = rs.getInt("user_id");
                     String storedCredentials = rs.getString("password");
-                    String role = rs.getString("role");
+                    String role = rs.getString("role").toUpperCase();
 
+                    boolean authenticated = false;
                     if (storedCredentials.contains(":")) {
                         String[] parts = storedCredentials.split(":");
                         if (SecurityUtil.verifyPassword(password, parts[0], parts[1])) {
-                            // MANDATORY LOG #1: Authentication (Login)
-                            ActivityLogDao.logActivity(userId, "AUTHENTICATION", "User " + username + " (ID: " + userId + ") logged in.");
-                            return role;
+                            authenticated = true;
                         }
                     } else if (storedCredentials.equals(password)) {
-                        ActivityLogDao.logActivity(userId, "AUTHENTICATION", "User " + username + " (ID: " + userId + ") logged in.");
+                        authenticated = true;
+                    }
+
+                    if (authenticated) {
+                        // Dynamically logs role-specific login (e.g., STUDENT_LOGIN, ADMIN_LOGIN, etc.)
+                        String actionType = role + "_LOGIN";
+                        ActivityLogDao.logAction(userId, actionType, role + " " + username + " (ID: " + userId + ") logged into the system.");
                         return role;
                     }
                 }
@@ -65,10 +70,12 @@ public class UserDao {
         return null;
     }
 
-    public void logLogout(int userId, String username) {
-        if (userId > 0 && username != null) {
-            // MANDATORY LOG #1: Authentication (Logout)
-            ActivityLogDao.logActivity(userId, "AUTHENTICATION", "User " + username + " (ID: " + userId + ") logged out.");
+    public void logLogout(int userId, String username, String role) {
+        if (userId > 0 && username != null && role != null) {
+            String cleanRole = role.toUpperCase();
+            // Dynamically logs role-specific logout (e.g., STUDENT_LOGOUT, ADMIN_LOGOUT, etc.)
+            String actionType = cleanRole + "_LOGOUT";
+            ActivityLogDao.logAction(userId, actionType, cleanRole + " " + username + " (ID: " + userId + ") logged out from the system.");
         }
     }
 
@@ -132,6 +139,7 @@ public class UserDao {
         return users;
     }
 
+    // Deliverable 5 Integration: USER_APPROVED log action
     public boolean approveUser(int adminId, int targetUserId) {
         String sql = "UPDATE users SET status = 'ACTIVE' WHERE user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -139,8 +147,7 @@ public class UserDao {
             pstmt.setInt(1, targetUserId);
             boolean success = pstmt.executeUpdate() > 0;
             if (success) {
-                // MANDATORY LOG #2: Account Management (User Approved)
-                ActivityLogDao.logActivity(adminId, "ACCOUNT_MANAGEMENT", "Admin " + adminId + " approved User " + targetUserId);
+                ActivityLogDao.logAction(adminId, "USER_APPROVED", "Admin " + adminId + " approved account for User ID " + targetUserId);
             }
             return success;
         } catch (SQLException e) {
@@ -149,21 +156,17 @@ public class UserDao {
         }
     }
 
-    public boolean approveUser(int userId) {
-        return approveUser(userId, userId);
-    }
-
-    public boolean updateUserRoleAndStatus(int userId, String newRole, String newStatus) {
+    // Deliverable 7 Integration: USER_UPDATED log action
+    public boolean updateUserRoleAndStatus(int adminId, int targetUserId, String newRole, String newStatus) {
         String sql = "UPDATE users SET role = ?, status = ? WHERE user_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, newRole.toUpperCase());
             pstmt.setString(2, newStatus.toUpperCase());
-            pstmt.setInt(3, userId);
+            pstmt.setInt(3, targetUserId);
             boolean success = pstmt.executeUpdate() > 0;
             if (success) {
-                // MANDATORY LOG #2: Account Management (Role Edit)
-                ActivityLogDao.logActivity(userId, "ACCOUNT_MANAGEMENT", "Role changed to " + newRole.toUpperCase());
+                ActivityLogDao.logAction(adminId, "USER_UPDATED", "Admin " + adminId + " changed role of User " + targetUserId + " to " + newRole.toUpperCase());
             }
             return success;
         } catch (SQLException e) {

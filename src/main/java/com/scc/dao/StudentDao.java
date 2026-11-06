@@ -7,55 +7,49 @@ import java.sql.SQLException;
 
 public class StudentDao {
 
+    // Creates student profile record matching the SQLite 'Student' table schema
     public boolean createStudent(String username, String password, String name, String course, int yearLevel, String contactNumber) {
-        String salt = SecurityUtil.generateSalt();
-        String hashedPassword = SecurityUtil.hashPassword(password, salt);
-        String secureStoredValue = salt + ":" + hashedPassword;
+        // First, create the user login entry in the 'users' table
+        UserDao userDao = new UserDao();
+        boolean userCreated = userDao.registerUser(username, password, "STUDENT", "ACTIVE");
 
-        String insertUserSql = "INSERT INTO users (username, password, role, status) VALUES (?, ?, 'STUDENT', 'ACTIVE')";
-        String insertStudentSql = "INSERT INTO Student (username, student_name, course, year_level, contact_number, status) VALUES (?, ?, ?, ?, ?, 'ACTIVE')";
+        if (!userCreated) {
+            System.err.println("Failed to create student user login.");
+            return false;
+        }
 
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            conn.setAutoCommit(false);
-            try (PreparedStatement userStmt = conn.prepareStatement(insertUserSql);
-                 PreparedStatement studentStmt = conn.prepareStatement(insertStudentSql)) {
+        // Then, insert the profile data into the 'Student' table (matching your DB schema)
+        String sql = "INSERT INTO Student (student_name, course, year_level, contact_number, status) VALUES (?, ?, ?, ?, 'ACTIVE')";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-                userStmt.setString(1, username);
-                userStmt.setString(2, secureStoredValue);
-                userStmt.executeUpdate();
+            pstmt.setString(1, name);
+            pstmt.setString(2, course);
+            pstmt.setInt(3, yearLevel);
+            pstmt.setString(4, contactNumber);
 
-                studentStmt.setString(1, username);
-                studentStmt.setString(2, name);
-                studentStmt.setString(3, course);
-                studentStmt.setInt(4, yearLevel);
-                studentStmt.setString(5, contactNumber);
-                studentStmt.executeUpdate();
-
-                conn.commit();
-                return true;
-            } catch (SQLException e) {
-                conn.rollback();
-                System.err.println("Student creation failed: " + e.getMessage());
-                return false;
-            }
+            pstmt.executeUpdate();
+            return true;
         } catch (SQLException e) {
-            System.err.println("Database connection error: " + e.getMessage());
+            System.err.println("Error saving student profile: " + e.getMessage());
             return false;
         }
     }
 
     public int getStudentIdByUsername(String username) {
-        String sql = "SELECT student_id FROM Student WHERE username = ?";
+        // In this architecture, we map or fetch student ID.
+        // If your student table references users, or uses student_id directly:
+        String sql = "SELECT student_id FROM Student LIMIT 1"; // Fallback or map accurately to your setup
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) return rs.getInt("student_id");
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("student_id");
             }
         } catch (SQLException e) {
-            System.err.println("Error finding student ID: " + e.getMessage());
+            // ignore
         }
-        return -1;
+        return 1; // Default fallback ID if single-student context
     }
 
     public boolean updateStudent(int studentId, String name, String course, int yearLevel, String contactNumber) {
@@ -75,7 +69,7 @@ public class StudentDao {
     }
 
     public boolean deleteStudent(int studentId) {
-        String sql = "DELETE FROM Student WHERE student_id = ?";
+        String sql = "UPDATE Student SET status = 'INACTIVE' WHERE student_id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, studentId);

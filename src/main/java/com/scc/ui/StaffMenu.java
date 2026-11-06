@@ -3,6 +3,7 @@ package com.scc.ui;
 import com.scc.dao.DatabaseConnection;
 import com.scc.dao.QueueDao;
 import com.scc.dao.ServiceDao;
+import com.scc.dao.UserDao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,9 +14,11 @@ import java.util.Scanner;
 public class StaffMenu {
     private static final QueueDao queueDao = new QueueDao();
     private static final ServiceDao serviceDao = new ServiceDao();
+    private static final UserDao userDao = new UserDao();
 
     public static void showMenu(Scanner sc, String staffUsername) {
         boolean back = false;
+        int staffUserId = userDao.getUserIdByUsername(staffUsername);
 
         while (!back) {
             System.out.println("\n=======================================");
@@ -35,7 +38,7 @@ public class StaffMenu {
                     viewWaitingQueue();
                     break;
                 case "2":
-                    processNextQueue(sc);
+                    processNextQueue(sc, staffUserId);
                     break;
                 case "3":
                     manageServicesMenu(sc);
@@ -59,7 +62,7 @@ public class StaffMenu {
         System.out.println("==================================================================================================");
 
         String sql = "SELECT q.queue_id, q.queue_number, s.student_name, sv.service_name, q.queue_date, q.queue_time " +
-                "FROM Queue q JOIN Student s ON q.student_id = s.student_id JOIN Services sv ON q.service_id = sv.service_id " +
+                "FROM queue q JOIN Student s ON q.student_id = s.student_id JOIN Services sv ON q.service_id = sv.service_id " +
                 "WHERE q.status = 'WAITING' ORDER BY q.queue_id ASC";
 
         try (Connection conn = DatabaseConnection.getConnection();
@@ -87,12 +90,22 @@ public class StaffMenu {
         }
     }
 
-    private static void processNextQueue(Scanner sc) {
+    private static void processNextQueue(Scanner sc, int staffUserId) {
         viewWaitingQueue();
-        int queueId = Authentication.readIntInput(sc, "Enter Queue ID to mark as SERVING (0 to cancel): ");
+        System.out.print("Enter Queue ID to mark as SERVING (0 to cancel): ");
+
+        int queueId;
+        try {
+            queueId = Integer.parseInt(sc.nextLine().trim());
+        } catch (NumberFormatException e) {
+            System.out.println("[!] Invalid input. Operation cancelled.");
+            return;
+        }
+
         if (queueId == 0) return;
 
-        if (queueDao.updateQueueStatus(queueId, "SERVING")) {
+        // Triggers Audit Log Row 4: STATUS_UPDATED
+        if (queueDao.updateTicketStatus(staffUserId, queueId, "WAITING", "SERVING")) {
             System.out.println("-> Success! Queue ID " + queueId + " is now SERVING.");
         } else {
             System.out.println("-> Failed to update queue status.");
@@ -119,7 +132,13 @@ public class StaffMenu {
                     String name = sc.nextLine();
                     System.out.print("Enter Description: ");
                     String desc = sc.nextLine();
-                    int counter = Authentication.readIntInput(sc, "Enter Counter Number: ");
+                    System.out.print("Enter Counter Number: ");
+                    int counter;
+                    try {
+                        counter = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        counter = 1;
+                    }
                     if (serviceDao.addService(name, desc, counter, "ACTIVE")) {
                         System.out.println("-> Service added successfully.");
                     }
@@ -129,19 +148,37 @@ public class StaffMenu {
                     break;
                 case "3":
                     viewServicesDirectory();
-                    int updateId = Authentication.readIntInput(sc, "Enter Service ID to Update: ");
+                    System.out.print("Enter Service ID to Update: ");
+                    int updateId;
+                    try {
+                        updateId = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        break;
+                    }
                     System.out.print("Enter New Name: ");
                     String newName = sc.nextLine();
                     System.out.print("Enter New Description: ");
                     String newDesc = sc.nextLine();
-                    int newCounter = Authentication.readIntInput(sc, "Enter New Counter: ");
+                    System.out.print("Enter New Counter: ");
+                    int newCounter;
+                    try {
+                        newCounter = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        newCounter = 1;
+                    }
                     if (serviceDao.updateService(updateId, newName, newDesc, newCounter, "ACTIVE")) {
                         System.out.println("-> Service updated successfully.");
                     }
                     break;
                 case "4":
                     viewServicesDirectory();
-                    int deleteId = Authentication.readIntInput(sc, "Enter Service ID to Delete (0 to cancel): ");
+                    System.out.print("Enter Service ID to Delete (0 to cancel): ");
+                    int deleteId;
+                    try {
+                        deleteId = Integer.parseInt(sc.nextLine().trim());
+                    } catch (NumberFormatException e) {
+                        deleteId = 0;
+                    }
                     if (deleteId != 0 && serviceDao.deleteService(deleteId)) {
                         System.out.println("-> Service deleted successfully.");
                     }
